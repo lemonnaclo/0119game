@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>S2-1-001 Debug Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: #000;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #f5f5f5;
+      overflow: hidden;
+    }
+
+    .layout {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: row;
+    }
+
+    /* 🔹 좌측: 메인 게임 영역 */
+    .left-area {
+      flex: 1;
+      position: relative;
+      background: #000 url("static/virus_cat_bgr.png") center/cover no-repeat;
+      overflow: hidden;
+    }
+
+    /* 상단 타이머 바 */
+    .top-bar {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(2, 6, 18, 0.85);
+      border: 1px solid rgba(120, 200, 255, 0.5);
+      box-shadow: 0 0 18px rgba(0, 0, 0, 0.8);
+      z-index: 5;
+    }
+
+    .timer-phase {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #a3b7ff;
+    }
+
+    .timer-display {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      color: #00ffd0;
+      text-shadow: 0 0 10px rgba(0,255,170,0.8);
+      min-width: 110px;
+      text-align: center;
+    }
+
+    .round-hint {
+      font-size: 11px;
+      color: #b6c1dd;
+      opacity: 0.85;
+    }
+
+    /* 문제 이미지 오버레이 */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.4);
+      pointer-events: none;
+    }
+
+    .overlay-inner {
+      pointer-events: auto;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(4,8,16,0.9);
+      border: 1px solid rgba(120,200,255,0.4);
+      max-width: 90%;
+      max-height: 75%;
+      box-shadow: 0 0 24px rgba(0,0,0,0.9);
+    }
+
+    #questionImage {
+      max-width: 100%;
+      max-height: 70vh;
+      object-fit: contain;
+    }
+
+    /* 결과 화면 */
+    .result-screen {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #resultImage {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+    }
+
+    .hidden { display: none; }
+
+    /* 🔹 우측: 패드 + 버튼 영역 */
+    .right-area {
+      width: 380px;
+      background: #111;
+      border-left: 2px solid #222;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 12px 10px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+      gap: 10px;
+    }
+
+    .pad-frame {
+      width: 100%;
+      flex: 1;
+      border: none;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 18px rgba(0,0,0,0.9);
+    }
+
+    .side-buttons {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .side-btn {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid #3a4d6b;
+      background: #151c28;
+      color: #e4e7ff;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s, transform 0.08s, border-color 0.15s, filter 0.15s;
+    }
+
+    .side-btn.virus {
+      background: #2b1b2b;
+      border-color: #aa4bb8;
+      color: #ffd5ff;
+      font-weight: 600;
+    }
+
+    .side-btn.reset {
+      background: #162c31;
+      border-color: #3ca0b5;
+      color: #d5f9ff;
+      font-weight: 600;
+    }
+
+    .side-btn:hover { filter: brightness(1.08); }
+    .side-btn:active { transform: scale(0.97); }
+  </style>
+</head>
+
+<body>
+  <div class="layout">
+    <!-- 🔹 좌측 게임 영역 -->
+    <div class="left-area">
+      <!-- 상단 타이머 -->
+      <div class="top-bar">
+        <span class="timer-phase" id="timerPhase">ROUND</span>
+        <span class="timer-display" id="timerDisplay">00:20</span>
+        <span class="round-hint">20초 안에 정답 입력 → 이후 10초 판정</span>
+      </div>
+
+      <!-- 문제 오버레이 -->
+      <div id="questionOverlay" class="overlay">
+        <div class="overlay-inner">
+          <img id="questionImage" alt="question" />
+        </div>
+      </div>
+
+      <!-- 결과 화면 -->
+      <div id="resultScreen" class="result-screen hidden">
+        <img id="resultImage" alt="result" />
+      </div>
+    </div>
+
+    <!-- 🔹 우측: 키패드 + 버튼 -->
+    <div class="right-area">
+      <iframe
+        class="pad-frame"
+        src="S2-1-001-debugpad.html"
+        title="Debug Pad"
+      ></iframe>
+
+      <div class="side-buttons">
+        <button class="side-btn virus" id="btnToVirus">
+          S2-1-001-virus 화면
+        </button>
+        <button class="side-btn reset" id="btnGameReset">
+          초기화
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================
+       설정값 / 리소스
+    ========================== */
+    const TOTAL_QUESTIONS = 50;
+
+    // 파일명: static/s2_q_debug_d 1.png ~ static/s2_q_debug_d 50.png
+    const QUESTION_IMAGES = Array.from({ length: TOTAL_QUESTIONS }, (_, i) =>
+      `static/s2_q_debug_d ${i + 1}.png`
+    );
+
+    // 정답 테이블
+    const ANSWERS = {
+      1:"4",  2:"96",  3:"22",  4:"01011001",  5:"010011101",
+      6:"6482",  7:"4264",  8:"26824",  9:"16", 10:"54",
+      11:"26",12:"40",13:"6",14:"7",15:"5",
+      16:"3",17:"0",18:"0",19:"21",20:"38",
+      21:"25",22:"6",23:"5",24:"7796",25:"1",
+      26:"2457",27:"2",28:"748255",29:"001",30:"14",
+      31:"66226266",32:"32142123",33:"6",34:"-+0",35:"42",
+      36:"fn",37:"5325",38:"3972",39:"×",40:"4",
+      41:"258910",42:"-",43:"=",44:"+",45:".",
+      46:"1",47:"9",48:"2",49:"01011001",50:"010011101",
+    };
+
+    const RESULT_OK   = "static/s2_r_debug_o.png";
+    const RESULT_FAIL = "static/s2_r_debug_x.png";
+
+    const ROUND_TIME_SECONDS  = 20; // 정답 입력 가능 시간
+    const JUDGE_TIME_SECONDS  = 10; // 판정시간
+
+    /* =========================
+       DOM 요소
+    ========================== */
+    const timerPhaseEl    = document.getElementById("timerPhase");
+    const timerDisplayEl  = document.getElementById("timerDisplay");
+
+    const questionOverlay = document.getElementById("questionOverlay");
+    const questionImage   = document.getElementById("questionImage");
+
+    const resultScreen    = document.getElementById("resultScreen");
+    const resultImage     = document.getElementById("resultImage");
+
+    const btnToVirus      = document.getElementById("btnToVirus");
+    const btnGameReset    = document.getElementById("btnGameReset");
+
+    /* =========================
+       게임 상태 변수
+    ========================== */
+
+    // phase: "round" (입력 가능 20초) / "judge" (판정 10초)
+    let phase = "round";
+    let timeLeft = ROUND_TIME_SECONDS;
+
+    let timerId = null;
+
+    let currentQuestionNumber = null;
+    let answeredThisRound = false; // 이 라운드에 이미 판정했는지
+
+    /* =========================
+       타이머 표시/갱신
+    ========================== */
+    function updateTimerDisplay() {
+      const m = Math.floor(timeLeft / 60);
+      const s = timeLeft % 60;
+      timerDisplayEl.textContent =
+        String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+
+      if (phase === "round") {
+        timerPhaseEl.textContent = "ROUND";
+        timerPhaseEl.style.color = "#a3b7ff";
+        timerDisplayEl.style.color = "#00ffd0";
+      } else {
+        timerPhaseEl.textContent = "JUDGE";
+        timerPhaseEl.style.color = "#ffcf66";
+        timerDisplayEl.style.color = "#ffcf66";
+      }
+    }
+
+    /* =========================
+       문제 관련
+    ========================== */
+    function pickRandomQuestion() {
+      const n = Math.floor(Math.random() * TOTAL_QUESTIONS) + 1;
+      currentQuestionNumber = n;
+      questionImage.src = QUESTION_IMAGES[n - 1];
+
+      questionOverlay.classList.remove("hidden");
+      resultScreen.classList.add("hidden");
+    }
+
+    function showResult(isCorrect) {
+      resultImage.src = isCorrect ? RESULT_OK : RESULT_FAIL;
+      questionOverlay.classList.add("hidden");
+      resultScreen.classList.remove("hidden");
+    }
+
+    /* =========================
+       라운드 컨트롤
+    ========================== */
+    function startRound() {
+      phase = "round";
+      timeLeft = ROUND_TIME_SECONDS;
+      answeredThisRound = false;
+      pickRandomQuestion();
+      updateTimerDisplay();
+
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(onTick, 1000);
+    }
+
+    function resetGame() {
+      phase = "round";
+      timeLeft = ROUND_TIME_SECONDS;
+      answeredThisRound = false;
+      pickRandomQuestion();
+      updateTimerDisplay();
+
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(onTick, 1000);
+    }
+
+    function onTick() {
+      if (timeLeft > 0) {
+        timeLeft -= 1;
+        updateTimerDisplay();
+      }
+
+      if (phase === "round" && timeLeft === 0) {
+        // 입력 없이 시간 종료 → 즉시 오답 처리
+        if (!answeredThisRound) {
+          showResult(false);
+          answeredThisRound = true;
+        }
+        // 판정 시간으로 전환
+        phase = "judge";
+        timeLeft = JUDGE_TIME_SECONDS;
+        updateTimerDisplay();
+        return;
+      }
+
+      // 🔁 수정 부분: 판정시간 끝나도 자동으로 다음 라운드 시작하지 않음
+      if (phase === "judge" && timeLeft === 0) {
+        // 타이머만 멈추고, 결과 화면 상태로 그대로 유지
+        if (timerId) {
+          clearInterval(timerId);
+          timerId = null;
+        }
+        return;
+      }
+    }
+
+    /* =========================
+       정답 판정 (패드에서 입력)
+    ========================== */
+
+    // 순서 무시 비교용 (예: "-+0" == "+-0" == "0-+")
+    function normalizeUnordered(str) {
+      return str
+        .toString()
+        .replace(/\s+/g, "") // 공백 제거
+        .toLowerCase()
+        .split("")
+        .sort()
+        .join("");
+    }
+
+    function evaluateAnswer(rawValue) {
+      // 라운드 시간일 때만, 그리고 아직 답 안 냈을 때만 허용
+      if (phase !== "round") return;
+      if (answeredThisRound) return;
+      if (timeLeft <= 0) return;
+
+      const userRaw = (rawValue ?? "").toString().trim();
+      if (!userRaw) return; // 빈 입력 무시
+
+      const correctRaw = ANSWERS[currentQuestionNumber];
+      if (correctRaw == null || correctRaw === "") {
+        alert(
+          `문제 ${currentQuestionNumber}번의 정답이 설정되지 않았습니다.\nJS의 ANSWERS 객체를 수정해 주세요.`
+        );
+        return;
+      }
+
+      const userExact    = userRaw.toLowerCase();
+      const correctExact = correctRaw.toString().trim().toLowerCase();
+
+      const userUnordered    = normalizeUnordered(userRaw);
+      const correctUnordered = normalizeUnordered(correctRaw);
+
+      const isCorrect =
+        userExact === correctExact || userUnordered === correctUnordered;
+
+      showResult(isCorrect);
+      answeredThisRound = true;
+    }
+
+    /* =========================
+       이벤트 연결
+    ========================== */
+
+    // 패드 → numpadSubmit 메시지 수신
+    window.addEventListener("message", (event) => {
+      if (!event.data) return;
+      if (event.data.type !== "numpadSubmit") return;
+      evaluateAnswer(event.data.value);
+    });
+
+    // S2-1-001-virus 화면으로 이동 (이미지 페이지로 이동)
+    btnToVirus.addEventListener("click", () => {
+      window.location.href = "S2-1-001-virus.png";
+    });
+
+    // 초기화 버튼: 라운드/타이머/문제 새로 시작
+    btnGameReset.addEventListener("click", () => {
+      resetGame();
+    });
+
+    // 초기 진입 시 라운드 시작
+    (function init() {
+      startRound();
+    })();
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "]") {
+        window.location.href = "S2-1-001-virus.html";
+      }
+
+      // 🔁 추가: 판정시간에서 Q 눌러야 다음 라운드 시작
+      if (e.key === "q" || e.key === "Q") {
+        if (phase === "judge" && answeredThisRound) {
+          startRound();
+        }
+      }
+    });
+  </script>
+</body>
+</html>

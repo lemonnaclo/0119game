@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>S2-1-001 Virus Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: #000;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #f5f5f5;
+      overflow: hidden;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      background: #000 url("static/virus_cat_bgr.png") center/cover no-repeat;
+    }
+
+    /* -------------------------------
+       🔵 상단 HUD (타이머 + 페이즈 + 설명 + 게이지)
+       → 디버그 게임과 동일한 타이머 UI 스타일
+    --------------------------------*/
+    .top-bar {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(2, 6, 18, 0.85);
+      border: 1px solid rgba(120, 200, 255, 0.5);
+      box-shadow: 0 0 18px rgba(0, 0, 0, 0.8);
+      z-index: 10;
+    }
+
+    .timer-phase {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #a3b7ff;
+    }
+
+    .timer-display {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      color: #00ffd0;
+      text-shadow: 0 0 10px rgba(0,255,170,0.8);
+      min-width: 110px;
+      text-align: center;
+    }
+
+    .round-hint {
+      font-size: 11px;
+      color: #b6c1dd;
+      opacity: 0.85;
+      white-space: nowrap;
+    }
+
+    .gauge-box {
+      display: flex;
+      gap: 6px;
+      margin-left: 4px;
+    }
+
+    .gauge {
+      width: 22px;
+      height: 28px;
+      border-radius: 4px;
+      background: #222;
+      border: 1px solid #555;
+      box-shadow: inset 0 0 6px rgba(0,0,0,0.7);
+    }
+
+    .gauge.active {
+      background: #ff3b3b;
+      border-color: #ff9a9a;
+      box-shadow: 0 0 10px rgba(255,60,60,0.7);
+    }
+
+    /* -------------------------------
+       문제/결과 오버레이
+    --------------------------------*/
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.45);
+    }
+
+    .overlay-inner {
+      padding: 12px;
+      background: rgba(4,8,16,0.9);
+      border: 1px solid rgba(120,200,255,0.4);
+      border-radius: 12px;
+    }
+
+    #questionImage {
+      max-width: 75vw;
+      max-height: 70vh;
+      object-fit: contain;
+    }
+
+    .result-screen {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ✅ 결과 이미지 너무 크지 않게 제한 */
+    #resultImage {
+      width: auto;
+      height: auto;
+      max-width: 420px;
+      max-height: 260px;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.6);
+    }
+
+    /* -------------------------------
+       하단 버튼
+    --------------------------------*/
+    .bottom-panel {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 18px;
+      background: rgba(5,7,10,0.7);
+      padding: 10px 14px;
+      border-radius: 14px;
+    }
+
+    .choice-btn {
+      min-width: 120px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(180,200,220,0.8);
+      background: rgba(10,18,30,0.95);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* 오른쪽 빨간 오답 버튼 */
+    .fail-btn {
+      position: absolute;
+      right: 20px;
+      bottom: 40px;
+      width: 50px;
+      height: 50px;
+      background: #ff2b2b;
+      border: 2px solid #ff7373;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(255,0,0,0.6);
+    }
+
+    .reset-icon {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      width: 60px;
+      cursor: pointer;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.9));
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <!-- 🔵 상단 타이머 + 페이즈 + 설명 + 게이지 -->
+    <div class="top-bar">
+      <span class="timer-phase" id="timerPhase">ROUND</span>
+      <span class="timer-display" id="timerDisplay">00:20</span>
+      <span class="round-hint">20초 안에 정답 입력 → 이후 10초 판정</span>
+
+      <div class="gauge-box">
+        <div class="gauge active" id="g1"></div>
+        <div class="gauge" id="g2"></div>
+        <div class="gauge" id="g3"></div>
+      </div>
+    </div>
+
+    <!-- 문제 팝업 -->
+    <div id="questionOverlay" class="overlay hidden">
+      <div class="overlay-inner">
+        <img id="questionImage" />
+      </div>
+    </div>
+
+    <!-- 결과 화면 -->
+    <div id="resultScreen" class="result-screen hidden">
+      <img id="resultImage" />
+    </div>
+
+    <!-- 좌/우 선택 버튼 -->
+    <div class="bottom-panel">
+      <button id="choice1Btn" class="choice-btn">왼쪽</button>
+      <button id="choice2Btn" class="choice-btn">오른쪽</button>
+    </div>
+
+    <!-- 빨간 오답 버튼 -->
+    <div id="failBtn" class="fail-btn"></div>
+
+    <!-- 리셋 아이콘 -->
+    <img id="resetIcon" class="reset-icon" src="static/malware_cat_2.png" />
+  </div>
+
+  <script>
+    /* -------------------------
+       문제 & 정답 데이터
+    --------------------------*/
+    const TOTAL = 32;
+    const QUESTION_IMAGES = Array.from({ length: TOTAL }, (_, i) =>
+      `static/s2_q_virus_V${i+1}.png`
+    );
+
+    const ANSWERS = {
+      1: 1,  2: 2,  3: 2,  4: 2,
+      5: 2,  6: 2,  7: 2,  8: 2,
+      9: 1,  10: 1, 11: 2, 12: 1,
+      13: 1, 14: 2, 15: 2, 16: 1,
+      17: 1, 18: 2, 19: 2, 20: 1,
+      21: 2, 22: 2, 23: 1, 24: 2,
+      25: 1, 26: 2, 27: 2, 28: 2,
+      29: 1, 30: 1, 31: 2, 32: 2
+    };
+
+    const RESULT_OK   = "static/s2_r_virus_o.png";
+    const RESULT_FAIL = "static/s2_r_virus_x.png";
+
+    /* -------------------------
+       DOM
+    --------------------------*/
+    const questionOverlay = document.getElementById("questionOverlay");
+    const questionImage   = document.getElementById("questionImage");
+    const resultScreen    = document.getElementById("resultScreen");
+    const resultImage     = document.getElementById("resultImage");
+    const timerDisplayEl  = document.getElementById("timerDisplay");
+    const timerPhaseEl    = document.getElementById("timerPhase");
+
+    const failBtn    = document.getElementById("failBtn");
+    const choice1Btn = document.getElementById("choice1Btn");
+    const choice2Btn = document.getElementById("choice2Btn");
+    const resetIcon  = document.getElementById("resetIcon");
+
+    const g1 = document.getElementById("g1");
+    const g2 = document.getElementById("g2");
+    const g3 = document.getElementById("g3");
+
+    /* -------------------------
+       상태값
+    --------------------------*/
+    const ROUND_SECONDS = 20; // 정답 입력 시간
+    const JUDGE_SECONDS = 10; // 판정 유지 시간
+
+    let timeLeft = ROUND_SECONDS;
+    let phase = "round";        // "round" | "judge"
+    let timerId = null;
+
+    let current = null;         // 현재 문제 번호 (1~32)
+    let answeredThisRound = false;
+
+    let gaugeLevel = 1;         // 1~3
+
+    /* -------------------------
+       게이지 갱신
+    --------------------------*/
+    function updateGauge() {
+      g1.classList.toggle("active", gaugeLevel >= 1);
+      g2.classList.toggle("active", gaugeLevel >= 2);
+      g3.classList.toggle("active", gaugeLevel >= 3);
+    }
+
+    /* -------------------------
+       타이머 표시 + 페이즈 색상
+    --------------------------*/
+    function updateTimer() {
+      const m = String(Math.floor(timeLeft / 60)).padStart(2, "0");
+      const s = String(timeLeft % 60).padStart(2, "0");
+      timerDisplayEl.textContent = `${m}:${s}`;
+
+      if (phase === "round") {
+        timerPhaseEl.textContent = "ROUND";
+        timerPhaseEl.style.color = "#a3b7ff";
+        timerDisplayEl.style.color = "#00ffd0";
+      } else {
+        timerPhaseEl.textContent = "JUDGE";
+        timerPhaseEl.style.color = "#ffcf66";
+        timerDisplayEl.style.color = "#ffcf66";
+      }
+    }
+
+    /* -------------------------
+       문제 생성
+    --------------------------*/
+    function newQuestion() {
+      current = Math.floor(Math.random() * TOTAL) + 1;
+      questionImage.src = QUESTION_IMAGES[current - 1];
+      questionOverlay.classList.remove("hidden");
+      resultScreen.classList.add("hidden");
+      answeredThisRound = false;
+    }
+
+    /* -------------------------
+       결과 표시
+    --------------------------*/
+    function showResult(isCorrect) {
+      if (answeredThisRound) return;
+
+      resultImage.src = isCorrect ? RESULT_OK : RESULT_FAIL;
+      resultScreen.classList.remove("hidden");
+      questionOverlay.classList.add("hidden");
+
+      if (!isCorrect) {
+        // 오답시 감염 단계 1 → 2 → 3 → 1 순환
+        gaugeLevel = (gaugeLevel % 3) + 1;
+        updateGauge();
+      }
+
+      answeredThisRound = true;
+    }
+
+    /* -------------------------
+       정답 체크
+    --------------------------*/
+    function check(choice) {
+      if (phase !== "round") return;
+      if (answeredThisRound) return;
+      if (!current) return;
+
+      const ok = ANSWERS[current] === choice;
+      showResult(ok);
+    }
+
+    /* -------------------------
+       타이머 tick
+    --------------------------*/
+    function tick() {
+      if (timeLeft > 0) {
+        timeLeft--;
+        updateTimer();
+        return;
+      }
+
+      if (phase === "round" && timeLeft === 0) {
+        // 시간 초과 → 오답 처리
+        if (!answeredThisRound) {
+          showResult(false); // 여기서 게이지 +1
+        }
+        phase = "judge";
+        timeLeft = JUDGE_SECONDS;
+        updateTimer();
+        return;
+      }
+
+      // 판정시간 끝나도 자동으로 다음 라운드 시작하지 않음
+      if (phase === "judge" && timeLeft === 0) {
+        if (timerId) {
+          clearInterval(timerId);
+          timerId = null;
+        }
+        // 결과 화면 + JUDGE 00:00 상태로 그대로 유지
+        return;
+      }
+    }
+
+    /* -------------------------
+       라운드 시작
+    --------------------------*/
+    function startRound() {
+      phase = "round";
+      timeLeft = ROUND_SECONDS;
+      answeredThisRound = false;
+      newQuestion();
+      updateTimer();
+
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(tick, 1000);
+    }
+
+    /* -------------------------
+       이벤트
+    --------------------------*/
+    choice1Btn.onclick = () => check(1);
+    choice2Btn.onclick = () => check(2);
+    failBtn.onclick    = () => showResult(false);
+
+    // 리셋: 완전 초기화 (게이지 1단계 + 새 라운드)
+    resetIcon.onclick = () => {
+      gaugeLevel = 1;
+      updateGauge();
+      startRound();
+    };
+
+    document.addEventListener("keydown", (e) => {
+      // 스페이스바: 디버그용 - ROUND일 때만, 문제 없으면 새 문제
+      if (e.code === "Space" && !e.repeat && phase === "round") {
+        e.preventDefault();
+        if (!current) newQuestion();
+      }
+
+      // [ 키: 디버그 화면으로 이동
+      if (e.key === "[") {
+        window.location.href = "S2-1-001-debug.html";
+      }
+
+      // 🔺 Q: JUDGE 상태에서만 다음 라운드 강제 시작
+      if (e.key === "q" || e.key === "Q") {
+        if (phase === "judge" && answeredThisRound) {
+          startRound();
+        }
+      }
+
+      // 🔺 W: 감염 게이지 단계 -1 (최소 1)
+      if (e.key === "w" || e.key === "W") {
+        gaugeLevel = Math.max(1, gaugeLevel - 1);
+        updateGauge();
+      }
+
+      // 🔺 E: 감염 게이지 단계 +1 (최대 3)
+      if (e.key === "e" || e.key === "E") {
+        gaugeLevel = Math.min(3, gaugeLevel + 1);
+        updateGauge();
+      }
+    });
+
+    /* -------------------------
+       초기 실행
+    --------------------------*/
+    function init() {
+      gaugeLevel = 1;
+      updateGauge();
+      startRound();
+    }
+
+    init();
+  </script>
+</body>
+</html>

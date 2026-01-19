@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>Game Numpad</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body{
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      background:#111;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .numpad-wrap{
+      padding:12px;
+      border-radius:16px;
+      background:#202327;
+      box-shadow:0 10px 25px rgba(0,0,0,.6);
+    }
+
+    /* 🔹 입력값 표시창 */
+    .display {
+      width: 100%;
+      height: 40px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      background: #111;
+      color: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 10px;
+      font-size: 18px;
+      letter-spacing: 0.08em;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .display span {
+      white-space: nowrap;
+    }
+
+    .numpad{
+      display:grid;
+      grid-template-columns: repeat(4, 60px);
+      grid-template-rows: repeat(6, 60px);
+      grid-template-areas:
+        "esc   fn    eq    back"
+        "num   div   mul   minus"
+        "seven eight nine  plus"
+        "four  five  six   plus"
+        "one   two   three enter"
+        "zero  zero  dot   enter";
+      gap:6px;
+    }
+
+    .key{
+      border:none;
+      border-radius:8px;
+      background:#3a3d42;
+      color:#f5f5f5;
+      font-size:16px;
+      font-weight:600;
+      cursor:pointer;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      box-shadow:0 3px 0 rgba(0,0,0,.7);
+      transition:transform .05s, box-shadow .05s, filter .05s;
+    }
+    .key.light{
+      background:#e9e6df;
+      color:#222;
+    }
+    .key.mid{
+      background:#b0a896;
+      color:#222;
+    }
+
+    .key:active{
+      transform:translateY(2px);
+      box-shadow:0 1px 0 rgba(0,0,0,.7);
+      filter:brightness(.9);
+    }
+
+    .sub{
+      font-size:10px;
+      margin-top:2px;
+      opacity:.9;
+    }
+
+    /* 각 키 위치 매핑 */
+    .esc   { grid-area:esc; }
+    .fn    { grid-area:fn; }
+    .eq    { grid-area:eq; }
+    .back  { grid-area:back; }
+
+    .num   { grid-area:num; }
+    .div   { grid-area:div; }
+    .mul   { grid-area:mul; }
+    .minus { grid-area:minus; }
+
+    .seven { grid-area:seven; }
+    .eight { grid-area:eight; }
+    .nine  { grid-area:nine; }
+
+    .four  { grid-area:four; }
+    .five  { grid-area:five; }
+    .six   { grid-area:six; }
+
+    .one   { grid-area:one; }
+    .two   { grid-area:two; }
+    .three { grid-area:three; }
+
+    .zero  { grid-area:zero; }
+    .dot   { grid-area:dot; }
+    .plus  { grid-area:plus; }
+    .enter { grid-area:enter; }
+  </style>
+</head>
+<body>
+
+<div class="numpad-wrap">
+  <!-- 🔹 입력값 표시창 -->
+  <div class="display">
+    <span id="displayText"></span>
+  </div>
+
+  <div class="numpad">
+    <button class="key light esc">Esc</button>
+    <button class="key fn">Fn</button>
+    <button class="key eq">=</button>
+    <button class="key back">Back<br>space</button>
+
+    <button class="key num">Num<br>Lock</button>
+    <button class="key div">÷</button>
+    <button class="key mul">×</button>
+    <button class="key minus">−</button>
+
+    <button class="key mid seven">7<span class="sub">Home</span></button>
+    <button class="key mid eight">8<span class="sub">↑</span></button>
+    <button class="key mid nine">9<span class="sub">Pgup</span></button>
+    <button class="key plus">+</button>
+
+    <button class="key mid four">4<span class="sub">←</span></button>
+    <button class="key mid five">5</button>
+    <button class="key mid six">6<span class="sub">→</span></button>
+
+    <button class="key mid one">1<span class="sub">End</span></button>
+    <button class="key mid two">2<span class="sub">↓</span></button>
+    <button class="key mid three">3<span class="sub">Pgdn</span></button>
+    <button class="key light enter">Enter</button>
+
+    <button class="key mid zero">0<span class="sub">Ins</span></button>
+    <button class="key dot">·<span class="sub">Del</span></button>
+  </div>
+</div>
+
+<script>
+  const displayText = document.getElementById("displayText");
+  let buffer = "";
+
+  function render() {
+    displayText.textContent = buffer;
+  }
+
+  function append(ch) {
+    buffer += ch;
+    render();
+  }
+
+  function backspace() {
+    buffer = buffer.slice(0, -1);
+    render();
+  }
+
+  function clearAll() {
+    buffer = "";
+    render();
+  }
+
+  function submit() {
+    // 부모 창(메인 게임)으로 값 전달
+    if (window.parent) {
+      window.parent.postMessage(
+        {
+          type: "numpadSubmit",
+          value: buffer
+        },
+        "*"
+      );
+    }
+    // 필요하면 입력 유지 or 초기화 (여기선 유지)
+    // clearAll();
+  }
+
+  // ----- 키 매핑 -----
+  document.querySelector(".zero").addEventListener("click", () => append("0"));
+  document.querySelector(".one").addEventListener("click", () => append("1"));
+  document.querySelector(".two").addEventListener("click", () => append("2"));
+  document.querySelector(".three").addEventListener("click", () => append("3"));
+  document.querySelector(".four").addEventListener("click", () => append("4"));
+  document.querySelector(".five").addEventListener("click", () => append("5"));
+  document.querySelector(".six").addEventListener("click", () => append("6"));
+  document.querySelector(".seven").addEventListener("click", () => append("7"));
+  document.querySelector(".eight").addEventListener("click", () => append("8"));
+  document.querySelector(".nine").addEventListener("click", () => append("9"));
+
+  document.querySelector(".dot").addEventListener("click", () => append("."));
+  document.querySelector(".plus").addEventListener("click", () => append("+"));
+  document.querySelector(".minus").addEventListener("click", () => append("-"));
+  document.querySelector(".mul").addEventListener("click", () => append("*"));
+  document.querySelector(".div").addEventListener("click", () => append("/"));
+  document.querySelector(".eq").addEventListener("click", () => append("="));
+  document.querySelector(".fn").addEventListener("click", () => append("fn"));
+
+  document.querySelector(".back").addEventListener("click", backspace);
+  document.querySelector(".esc").addEventListener("click", clearAll);
+
+  document.querySelector(".enter").addEventListener("click", submit);
+
+  // Fn, NumLock은 연동 안 하고 데코용으로 둠
+  render();
+</script>
+
+</body>
+</html>

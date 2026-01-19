@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>GAME START</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    /* 전체 화면 배경 */
+    .start-container {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    /* 배경 이미지 넣고 싶으면 이 경로에 넣으면 됨 */
+    .start-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 1;
+      pointer-events: none;
+    }
+
+    .title {
+      position: relative;
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #e8f3ff;
+      text-shadow: 0 0 18px rgba(120,170,255,0.9);
+      margin-bottom: 18px;
+      z-index: 2;
+      text-align: center;
+    }
+
+    .subtitle {
+      position: relative;
+      font-size: 18px;
+      color: #c9d9ff;
+      opacity: 0.85;
+      z-index: 2;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="start-container">
+    <img class="start-bg" src="static/q_s2_d_000.png" alt="start background">
+
+    <div class="title">.</div>
+    <div class="subtitle">.</div>
+  </div>
+
+  <script>
+    // 🔥 어떤 요소가 포커스를 먹든 상관없이 스페이스바 100% 인식되게 설정
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space" || e.key === " ") {
+        e.preventDefault(); 
+        window.location.href = "S2-1-001-debug.html";
+      }
+    });
+  </script>
+
+</body>
+</html>
